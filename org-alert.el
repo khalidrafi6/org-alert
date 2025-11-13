@@ -160,23 +160,48 @@ is less than `org-alert-notify-after-event-cutoff` past TIME."
          (> time-until (- org-alert-notify-after-event-cutoff)))
       (<= time-until cutoff))))
 
+(defun org-clean-todo-body (body-text)
+  "Remove :PROPERTIES: drawers and org-alert-time-match-string from BODY-TEXT.
+Returns the cleaned text with only the actual content remaining."
+  (let ((cleaned body-text))
+    ;; Remove SCHEDULED line (handles various timestamp formats)
+    (setq cleaned (replace-regexp-in-string
+
+                   ;; "SCHEDULED: *<[^>]+>"
+                   org-alert-time-match-string
+
+                   "" cleaned))
+
+    ;; Remove :PROPERTIES: drawer (everything from :PROPERTIES: to :END:)
+    (setq cleaned (replace-regexp-in-string
+                   ":PROPERTIES:.*?:END:" "" cleaned))
+
+    ;; Clean up extra whitespace
+    (setq cleaned (replace-regexp-in-string "^[ \t]+" "" cleaned))
+    (setq cleaned (replace-regexp-in-string "[ \t]+$" "" cleaned))
+    (setq cleaned (replace-regexp-in-string "[ \t]+" " " cleaned))
+
+    ;; Return cleaned text
+    (string-trim cleaned)))
+
 (defun org-alert--parse-entry ()
   "Parse an entry from the org agenda and return a list of the
 heading, the scheduled/deadline time, and the cutoff to apply"
   (let ((head (org-alert--strip-text-properties (org-get-heading t t t t))))
     (cl-destructuring-bind (body cutoff) (org-alert--grab-subtree)
-      (if (string-match org-alert-time-match-string body)
-          (list head (match-string 1 body) cutoff)
-        nil))))
+      (when (string-match org-alert-time-match-string body)
+        (setq cbody (org-clean-todo-body body))
+        (list head (match-string 1 body) cbody cutoff))
+      )))
 
 (defun org-alert--dispatch ()
   (let ((entry (org-alert--parse-entry)))
     (when entry
-      (cl-destructuring-bind (head time cutoff) entry
+      (cl-destructuring-bind (head time body cutoff) entry
         (if time
             (when (org-alert--check-time time cutoff)
-              (alert (concat time ": " head)
-                     :title org-alert-notification-title
+              (alert body
+                     :title (concat time ": " head)
                      :category org-alert-notification-category))
           (alert head :title org-alert-notification-title
                  :category org-alert-notification-category))))))
