@@ -65,7 +65,7 @@ If nil, never stop sending notifications."
   :group 'org-alert
   )
 
-(defcustom org-alert-notification-title (concat time ": " head)
+(defcustom org-alert-notification-title 'default
   "Title to be sent with notify-send."
   :group 'org-alert
   :type 'string)
@@ -197,13 +197,15 @@ heading, the scheduled/deadline time, and the cutoff to apply"
       (when (string-match org-alert-time-match-string body)
         (when (eq org-alert-notification-body 'todo-body)
           (setq org-alert-notification-body (org-clean-todo-body body)))
-        (list head (match-string 1 body) cutoff))
+        (when (eq org-alert-notification-title 'default)
+          (setq org-alert-notification-title (concat (match-string 1 body) ": " head)))
+        (list (match-string 1 body) cutoff))
       )))
 
 (defun org-alert--dispatch ()
   (let ((entry (org-alert--parse-entry)))
     (when entry
-      (cl-destructuring-bind (head time cutoff) entry
+      (cl-destructuring-bind (time cutoff) entry
         (if time
             (when (org-alert--check-time time cutoff)
               (alert org-alert-notification-body
