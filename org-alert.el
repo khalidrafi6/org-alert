@@ -195,8 +195,10 @@ heading, the scheduled/deadline time, and the cutoff to apply"
   (let ((head (org-alert--strip-text-properties (org-get-heading t t t t))))
     (cl-destructuring-bind (body cutoff) (org-alert--grab-subtree)
       (when (string-match org-alert-time-match-string body)
-        ;; (when (eq org-alert-notification-body 'todo-body)
-        ;;   (setq org-alert-notification-body (org-clean-todo-body body)))
+        (when (eq org-alert-notification-body 'todo-body)
+          (setq org-alert-notification-body (org-clean-todo-body body)))
+        (when (eq org-alert-notification-title 'default)
+          (setq org-alert-notification-title (concat (match-string 1 body) ": " head)))
         (list (match-string 1 body) cutoff))
       )))
 
@@ -206,9 +208,6 @@ heading, the scheduled/deadline time, and the cutoff to apply"
       (cl-destructuring-bind (time cutoff) entry
         (if time
             (when (org-alert--check-time time cutoff)
-              (message "Time: %S" time)
-              ;; (when (eq org-alert-notification-title 'default)
-              ;;   (setq org-alert-notification-title (concat time ": " head)))
               (alert org-alert-notification-body
                      :title org-alert-notification-title
                      :category org-alert-notification-category))
