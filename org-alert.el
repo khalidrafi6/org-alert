@@ -164,21 +164,24 @@ is less than `org-alert-notify-after-event-cutoff` past TIME."
   "Parse an entry from the org agenda and return a list of the
 heading, the scheduled/deadline time, and the cutoff to apply"
   (let ((head (org-alert--strip-text-properties (org-get-heading t t t t)))
-        (abody (org-entry-get nil "ALERT_BODY")))
+        (abody (org-entry-get nil "ALERT_BODY"))
+        (cat_head (org-entry-get nil "CATEGORY_HEAD")))
     (cl-destructuring-bind (body cutoff) (org-alert--grab-subtree)
       (when (string-match org-alert-time-match-string body)
         (when (not abody) (setq abody ""))
-        (list head (match-string 1 body) abody cutoff))
+        (list head (match-string 1 body) abody (org-get-category) cat_head cutoff))
       )))
 
 (defun org-alert--dispatch ()
   (let ((entry (org-alert--parse-entry)))
     (when entry
-      (cl-destructuring-bind (head time body cutoff) entry
+      (cl-destructuring-bind (head time body cat cat_head cutoff) entry
         (if time
             (when (org-alert--check-time time cutoff)
               (alert body
-                     :title (concat time ": " head)
+                     :title (if cat_head
+                                (concat time ": " head)
+                              (concat time ": " cat ": " head))
                      :category org-alert-notification-category))
           (alert head :title org-alert-notification-title
                  :category org-alert-notification-category))))))
